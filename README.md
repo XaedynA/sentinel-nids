@@ -63,3 +63,7 @@ The detector aggregates counts and distinct destination/port pairs without retai
 
 ## Portfolio talking points
 Explain threshold tradeoffs, false positives, packet metadata, SQLite schema, and why live capture is opt-in.
+
+## Public demo deployment
+
+Set `PUBLIC_DEMO=true` to disable shared history in the dashboard. Use synthetic captures on public instances. Start with `streamlit run dashboard.py --server.address 0.0.0.0 --server.port $PORT --server.maxUploadSize 20`. Local history remains available when public demo mode is off.

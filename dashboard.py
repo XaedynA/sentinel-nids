@@ -1,6 +1,7 @@
 """Interactive NIDS dashboard for authorized captures."""
 from __future__ import annotations
 import json
+import os
 import tempfile
 from pathlib import Path
 import pandas as pd
@@ -8,6 +9,8 @@ import streamlit as st
 from nids.detector import detect
 from nids.pcap import read_pcap
 from nids.history import save_scan, list_scans
+
+PUBLIC_DEMO = os.getenv("PUBLIC_DEMO", "false").lower() == "true"
 
 st.set_page_config(page_title="Sentinel | Network IDS", page_icon="🛡️", layout="wide")
 st.title("🛡️ Sentinel — Network Intrusion Detection")
@@ -19,7 +22,7 @@ with st.sidebar:
     scan = st.number_input("Distinct destination/port pairs", min_value=1, value=12)
     syn = st.number_input("SYN packets per window", min_value=1, value=80)
     volume = st.number_input("Packets per window", min_value=1, value=500)
-    st.caption("History is stored locally at ~/.nids_portfolio/alerts.sqlite3")
+    st.caption("Public demo: history is disabled. Use synthetic captures only." if PUBLIC_DEMO else "History is stored locally at ~/.nids_portfolio/alerts.sqlite3")
 
 tab1, tab2, tab3 = st.tabs(["Analyze capture", "Alert history", "Live capture guide"])
 with tab1:
@@ -56,7 +59,7 @@ with tab1:
                 st.markdown("**Top source IPs**")
                 st.bar_chart(df["source"].value_counts().head(10))
             st.markdown("**Packets over time**")
-            st.line_chart(df.set_index("time").resample("10s").size().rename("packets"))
+            st.line_chart(df.groupby(df["time"].dt.floor("10s")).size().rename("packets"))
         if alerts:
             st.subheader("Security alerts")
             frame = pd.DataFrame([a.to_dict() for a in alerts])
@@ -68,13 +71,13 @@ with tab1:
             st.download_button("Download alerts JSON", json.dumps([a.to_dict() for a in alerts], indent=2), "alerts.json", "application/json")
         else:
             st.success("No configured thresholds triggered; this does not guarantee safe traffic.")
-        if st.button("Save analysis to local history", type="primary"):
+        if not PUBLIC_DEMO and st.button("Save analysis to local history", type="primary"):
             scan_id = save_scan(upload.name, records, alerts)
             st.success(f"Saved scan #{scan_id}. Open Alert history to review it.")
 with tab2:
     if st.button("Refresh history"):
         st.rerun()
-    history = list_scans()
+    history = [] if PUBLIC_DEMO else list_scans()
     if history:
         st.dataframe(pd.DataFrame([{k: v for k, v in row.items() if k != "alerts_json"} for row in history]), use_container_width=True)
         chosen = st.selectbox("Inspect scan", history, format_func=lambda r: f"#{r['id']} {r['capture_name']} — {r['created_at']}")
@@ -84,7 +87,7 @@ with tab2:
         else:
             st.info("No alerts in this scan")
     else:
-        st.info("No scans saved yet. Analyze a capture and click Save analysis.")
+        st.info("History is disabled on this public demo." if PUBLIC_DEMO else "No scans saved yet. Analyze a capture and click Save analysis.")
 with tab3:
     st.markdown("""**Live capture is opt-in and runs only on your own or authorized interfaces.**
 
