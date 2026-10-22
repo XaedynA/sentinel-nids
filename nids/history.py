@@ -1,6 +1,7 @@
 """Local SQLite alert history. Never stores packet payloads."""
 from __future__ import annotations
 import json
+from contextlib import closing
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
@@ -20,7 +21,7 @@ def connect(db_path=None):
     return db
 
 def save_scan(name, records, alerts, db_path=None):
-    with connect(db_path) as db:
+    with closing(connect(db_path)) as db:
         cursor = db.execute("""INSERT INTO scans
             (created_at, capture_name, packet_count, source_count, alert_count, alerts_json)
             VALUES (?, ?, ?, ?, ?, ?)""", (
@@ -31,7 +32,9 @@ def save_scan(name, records, alerts, db_path=None):
         return cursor.lastrowid
 
 def list_scans(db_path=None, limit=100):
-    with connect(db_path) as db:
+    if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= 1000:
+        raise ValueError("limit must be between 1 and 1000")
+    with closing(connect(db_path)) as db:
         db.row_factory = sqlite3.Row
         return [dict(r) for r in db.execute(
             "SELECT * FROM scans ORDER BY id DESC LIMIT ?", (int(limit),))]

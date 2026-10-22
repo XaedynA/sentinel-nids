@@ -24,6 +24,9 @@ with st.sidebar:
 tab1, tab2, tab3 = st.tabs(["Analyze capture", "Alert history", "Live capture guide"])
 with tab1:
     upload = st.file_uploader("Upload a PCAP or PCAPNG", type=["pcap", "pcapng", "cap"])
+    if upload and upload.size > 20 * 1024 * 1024:
+        st.error("Capture exceeds the 20 MB upload limit.")
+        st.stop()
     if upload:
         suffix = Path(upload.name).suffix.lower()
         with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:

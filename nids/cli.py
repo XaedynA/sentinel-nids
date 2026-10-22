@@ -17,8 +17,13 @@ def main():
     parser.add_argument("--syn-threshold", type=int, default=80)
     parser.add_argument("--volume-threshold", type=int, default=500)
     args = parser.parse_args()
-    records = read_pcap(args.pcap)
-    alerts = detect(records, args.window, args.scan_ports, args.syn_threshold, args.volume_threshold)
+    if min(args.window, args.scan_ports, args.syn_threshold, args.volume_threshold) <= 0:
+        parser.error("Thresholds and window must be positive")
+    try:
+        records = read_pcap(args.pcap)
+        alerts = detect(records, args.window, args.scan_ports, args.syn_threshold, args.volume_threshold)
+    except (OSError, ValueError) as exc:
+        parser.exit(2, f"Analysis failed: {exc}\n")
     print(f"Analyzed {len(records)} IP packets; found {len(alerts)} alerts")
     for a in alerts:
         print(f"[{a.severity.upper()}] {a.type} source={a.source} count={a.count} {a.detail}")

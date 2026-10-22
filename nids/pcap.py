@@ -4,13 +4,15 @@ from .detector import PacketRecord
 
 
 def read_pcap(path: str, max_packets: int = 200_000) -> list[PacketRecord]:
+    if isinstance(max_packets, bool) or not isinstance(max_packets, int) or max_packets < 1:
+        raise ValueError("max_packets must be a positive integer")
     from scapy.all import PcapReader, IP, IPv6, TCP, UDP, DNS, DNSQR
 
     records = []
     with PcapReader(str(Path(path))) as reader:
-        for packet in reader:
-            if len(records) >= max_packets:
-                break
+        for index, packet in enumerate(reader):
+            if index >= max_packets:
+                raise ValueError("Capture exceeds packet limit; split it into smaller captures")
             if IP in packet:
                 src, dst = packet[IP].src, packet[IP].dst
             elif IPv6 in packet:
