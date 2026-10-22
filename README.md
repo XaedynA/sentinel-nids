@@ -1,5 +1,6 @@
 # Sentinel — Network Intrusion Detection System
 
+![Quality checks](https://github.com/XaedynA/sentinel-nids/actions/workflows/tests.yml/badge.svg)
 A defensive, local-first Python portfolio project. Analyzes PCAP/PCAPNG captures, flags suspicious network patterns, visualizes traffic, and stores optional scan history in SQLite.
 
 ## Features
@@ -14,7 +15,8 @@ A defensive, local-first Python portfolio project. Analyzes PCAP/PCAPNG captures
 
 ## Setup on macOS
 ```bash
-cd ~/Downloads/network-intrusion-detection-system
+git clone https://github.com/XaedynA/sentinel-nids.git
+cd sentinel-nids
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -r requirements.txt
@@ -42,10 +44,22 @@ Fixed time buckets group packets by source IP. TCP SYN packets without ACK contr
 ## Limitations and privacy
 - Not an intrusion prevention system; no traffic is blocked.
 - Does not reassemble streams, inspect TLS contents, or validate whether alerts are actual intrusions.
-- Uses fixed time buckets and at most 200,000 IP packets per imported capture.
+- Uses fixed time buckets. Captures exceeding 200,000 total frames (including non-IP traffic) are rejected instead of silently producing an incomplete report. Dashboard uploads are limited to 20 MB.
 - Local SQLite history stores alerts and metadata, not packet payloads. It may contain source IPs; protect your database.
 - Do not commit sensitive PCAPs, databases, secrets or real network traffic to GitHub.
 - The demo generator may emit harmless Scapy MAC/BPF permission warnings; it writes synthetic data only.
+
+## Verification and triage
+
+The regression suite covers IPv4/IPv6 and DNS parsing, non-IP frame accounting, threshold boundaries, unordered input, ACK exclusion, nonfinite timestamps, SQLite history, and CLI JSON/CSV exports. CI runs Python 3.11 and 3.12 and uploads coverage and JUnit results.
+
+```bash
+python -m nids.cli samples/demo.pcap --json alerts.json --csv alerts.csv
+```
+
+For each alert, confirm the time window and source, compare against authorized scanning/monitoring, and correlate with host or firewall logs before escalating. Preserve evidence securely. A quiet capture is not proof that a network is safe.
+
+The detector aggregates counts and distinct destination/port pairs without retaining per-packet lists. Memory still grows with distinct source/time buckets and destination pairs; the parser's frame cap bounds imported captures. History queries are capped at 1,000 results and connections are closed explicitly.
 
 ## Portfolio talking points
 Explain threshold tradeoffs, false positives, packet metadata, SQLite schema, and why live capture is opt-in.
